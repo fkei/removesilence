@@ -108,7 +108,7 @@ func ffmpegConcatenateChunks(inFiles []string, outFile, tmpDir string) error {
 		"-y",
 		outFile,
 	)
-	cmd.Stderr = os.Stderr
+	cmd.Stderr = logFile
 	cmd.Stdout = logFile
 	fmt.Printf("%s %s\n", cmd.Path, strings.Join(cmd.Args, " "))
 	return cmd.Run()
@@ -126,6 +126,8 @@ func ffmpegExtractSegments(inFile string, keep []segment, tmpDir string) ([]stri
 		args := []string{
 			"-i", inFile,
 			"-y",
+			"-avoid_negative_ts", "1",
+			"-copyinkf",
 			"-acodec", "copy",
 			"-vcodec", "copy",
 			"-scodec", "copy",

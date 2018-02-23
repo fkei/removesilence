@@ -15,7 +15,8 @@ Usage of ./removesilence:
   -outfile string
     	Path to output video file.
   -silencedb float
-    	dB value under which audio is considered to be silence.
+    	volume level (dB) below which audio is considered to be silence.
+    	Usually negative (e.g. -30).
 ```
 
 Example:

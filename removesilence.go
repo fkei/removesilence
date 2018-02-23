@@ -24,10 +24,12 @@ func main() {
 	inFile := flag.String("infile", "", "Path to input video file.")
 	outFile := flag.String("outfile", "", "Path to output video file.")
 	silenceDb := flag.Float64("silencedb", 0.0,
-		"dB value under which audio is considered to be silence.")
-	maxPause := flag.Float64("maxpause", 0.0, "max allowable period of silence. "+
-		"Anything longer than this amount will be trimmed down to this amount by removing "+
-		"an equal period of silence from both edges.")
+		"volume level (dB) below which audio is considered to be silence. "+
+			"Usually negative (e.g. -30).")
+	maxPause := flag.Float64("maxpause", 0.0, "max allowable period of silence (seconds). "+
+		"Any silent segment longer than this will be trimmed down to exactly this "+
+		"length by removing the middle portion and leaving maxpause/2 seconds of "+
+		"padding on each side.")
 	flag.BoolVar(&debug, "debug", false, "debug mode (preserve temp directory)")
 
 	flag.Parse()
@@ -121,7 +123,6 @@ func ffmpegExtractSegments(inFile string, keep []segment, tmpDir string) ([]stri
 	// https://superuser.com/a/863451/99065
 	args := []string{
 		"-nostdin",
-		"-loglevel", "error",
 		"-i", inFile,
 	}
 

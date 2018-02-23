@@ -79,14 +79,14 @@ func doit(inFile, outFile string, maxPause, silenceDb float64) error {
 	fmt.Printf("silent segments: %v\n", silence)
 	keep := invertSegmentsWithPadding(silence, maxPause/2.0)
 	fmt.Printf("keeping segments: %v\n", keep)
-	chunks, err := ffmpegExtractSegments(inFile, keep, tmpDir)
+	chunks, err := cut(inFile, keep, tmpDir)
 	if err != nil {
 		return err
 	}
-	return ffmpegConcatenateChunks(chunks, outFile, tmpDir)
+	return join(chunks, outFile, tmpDir)
 }
 
-func ffmpegConcatenateChunks(inFiles []string, outFile, tmpDir string) error {
+func join(inFiles []string, outFile, tmpDir string) error {
 	logFile, err := os.Create(filepath.Join(tmpDir, "concat.log"))
 	if err != nil {
 		return err
@@ -115,7 +115,7 @@ func ffmpegConcatenateChunks(inFiles []string, outFile, tmpDir string) error {
 	return cmd.Run()
 }
 
-func ffmpegExtractSegments(inFile string, keep []segment, tmpDir string) ([]string, error) {
+func cut(inFile string, keep []segment, tmpDir string) ([]string, error) {
 	chunks := []string{}
 	logFile, err := os.Create(filepath.Join(tmpDir, "extract.log"))
 	if err != nil {
@@ -124,21 +124,18 @@ func ffmpegExtractSegments(inFile string, keep []segment, tmpDir string) ([]stri
 	ext := filepath.Ext(inFile)
 	// https://superuser.com/a/863451/99065
 	for i, k := range keep {
-		args := []string{}
+		args := []string{"-i", inFile}
 		chunk := filepath.Join(tmpDir, fmt.Sprintf("%d%s", i, ext))
 		chunks = append(chunks, chunk)
 		if k.start != 0 {
 			args = append(args, "-ss", fmt.Sprintf("%f", k.start))
 		}
 		if k.end != 0 {
-			args = append(args, "-t", fmt.Sprintf("%f", k.end-k.start))
+			args = append(args, "-to", fmt.Sprintf("%f", k.end))
 		}
 		args = append(args,
-			"-i", inFile,
-			"-y",
 			"-c", "copy",
-			"-avoid_negative_ts", "1",
-			"-copyinkf",
+			"-y",
 		)
 		args = append(args, chunk)
 		cmd := exec.Command("ffmpeg", args...)

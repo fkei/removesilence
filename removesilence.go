@@ -105,6 +105,7 @@ func ffmpegConcatenateChunks(inFiles []string, outFile, tmpDir string) error {
 		"-safe", "0", // https://www.ffmpeg.org/ffmpeg-formats.html#Options
 		"-i", fileList,
 		"-c", "copy",
+		"-map", "0",
 		"-y",
 		outFile,
 	)

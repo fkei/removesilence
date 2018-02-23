@@ -9,7 +9,9 @@ Usage of ./removesilence:
   -infile string
     	Path to input video file.
   -maxpause float
-    	max allowable period of silence. Anything longer than this amount will be trimmed down to this amount by removing an equal period of silence from both edges.
+    	max allowable period of silence (seconds). Any silent segment longer than this
+      will be trimmed down to exactly this length by removing the middle portion and
+      leaving maxpause/2 seconds of padding on each side.
   -outfile string
     	Path to output video file.
   -silencedb float

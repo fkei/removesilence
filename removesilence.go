@@ -104,11 +104,11 @@ func ffmpegConcatenateChunks(inFiles []string, outFile, tmpDir string) error {
 		"-f", "concat",
 		"-safe", "0", // https://www.ffmpeg.org/ffmpeg-formats.html#Options
 		"-i", fileList,
-		"-y",
 		"-c", "copy",
+		"-y",
 		outFile,
 	)
-	cmd.Stderr = logFile
+	cmd.Stderr = os.Stderr
 	cmd.Stdout = logFile
 	fmt.Printf("%s %s\n", cmd.Path, strings.Join(cmd.Args, " "))
 	return cmd.Run()
@@ -122,11 +122,14 @@ func ffmpegExtractSegments(inFile string, keep []segment, tmpDir string) ([]stri
 	}
 	ext := filepath.Ext(inFile)
 	// https://superuser.com/a/863451/99065
-	args := []string{
-		"-nostdin",
-		"-i", inFile,
-	}
 	for i, k := range keep {
+		args := []string{
+			"-i", inFile,
+			"-y",
+			"-acodec", "copy",
+			"-vcodec", "copy",
+			"-scodec", "copy",
+		}
 		chunk := filepath.Join(tmpDir, fmt.Sprintf("%d%s", i, ext))
 		chunks = append(chunks, chunk)
 		if k.start != 0 {
@@ -135,14 +138,18 @@ func ffmpegExtractSegments(inFile string, keep []segment, tmpDir string) ([]stri
 		if k.end != 0 {
 			args = append(args, "-t", fmt.Sprintf("%f", k.end-k.start))
 		}
-		args = append(args, "-c", "copy", "-avoid_negative_ts", "1", chunk)
-	}
-	cmd := exec.Command("ffmpeg", args...)
-	cmd.Stdout = logFile
-	cmd.Stderr = logFile
-	fmt.Printf("%s %s\n", cmd.Path, strings.Join(cmd.Args, " "))
-	if err := cmd.Run(); err != nil {
-		return nil, err
+		args = append(args,
+			"-map_metadata", "0",
+			"-avoid_negative_ts", "1",
+		)
+		args = append(args, chunk)
+		cmd := exec.Command("ffmpeg", args...)
+		cmd.Stdout = logFile
+		cmd.Stderr = logFile
+		fmt.Printf("%s %s\n", cmd.Path, strings.Join(cmd.Args, " "))
+		if err := cmd.Run(); err != nil {
+			return nil, err
+		}
 	}
 	return chunks, nil
 }

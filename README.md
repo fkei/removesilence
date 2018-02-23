@@ -1,6 +1,6 @@
 # removesilence
 
-removesilence silent segments from a video file using ffmpeg.
+removesilence: remove silent segments from a video file using ffmpeg.
 
 ```
 Usage of ./removesilence:

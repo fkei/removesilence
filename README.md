@@ -17,6 +17,9 @@ Usage of removesilence:
       Usually negative (e.g. -30).
   -debug
       debug mode (preserve temp directory)
+  -cut_encode_opts string
+      encode options to pass to ffmpeg for cutting.
+      Example: -cut_encode_opts "-b:v 1M -b:a 192k"
 ```
 
 Example:

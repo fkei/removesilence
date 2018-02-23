@@ -122,23 +122,15 @@ func cut(inFile string, keep []segment, tmpDir string) ([]string, error) {
 		return nil, err
 	}
 	ext := filepath.Ext(inFile)
-	// https://superuser.com/a/863451/99065
 	for i, k := range keep {
-		args := []string{"-i", inFile}
 		chunk := filepath.Join(tmpDir, fmt.Sprintf("%d%s", i, ext))
 		chunks = append(chunks, chunk)
-		if k.start != 0 {
-			args = append(args, "-ss", fmt.Sprintf("%f", k.start))
-		}
-		if k.end != 0 {
-			args = append(args, "-to", fmt.Sprintf("%f", k.end))
-		}
-		args = append(args,
-			"-c", "copy",
-			"-y",
+		cmd := exec.Command("mp4box",
+			"-splitz",
+			fmt.Sprintf("%g:%g", k.start, k.end),
+			inFile,
+			"-out", chunk,
 		)
-		args = append(args, chunk)
-		cmd := exec.Command("ffmpeg", args...)
 		cmd.Stdout = logFile
 		cmd.Stderr = logFile
 		fmt.Printf("%s %s\n", cmd.Path, strings.Join(cmd.Args, " "))

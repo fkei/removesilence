@@ -5,18 +5,18 @@ removesilence: remove silent segments from a video file using ffmpeg.
 Usage of removesilence:
 ```
   -debug
-    	debug mode (preserve temp directory)
+      debug mode (preserve temp directory)
   -infile string
-    	Path to input video file.
+      Path to input video file.
   -maxpause float
-    	max allowable period of silence (seconds). Any silent segment longer than this
+      max allowable period of silence (seconds). Any silent segment longer than this
       will be trimmed down to exactly this length by removing the middle portion and
       leaving maxpause/2 seconds of padding on each side.
   -outfile string
-    	Path to output video file.
+      Path to output video file.
   -silencedb float
-    	volume level (dB) below which audio is considered to be silence.
-    	Usually negative (e.g. -30).
+      volume level (dB) below which audio is considered to be silence.
+      Usually negative (e.g. -30).
 ```
 
 Example:

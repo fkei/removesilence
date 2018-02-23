@@ -26,22 +26,26 @@ func main() {
 	silenceDb := flag.Float64("silencedb", 0.0,
 		"volume level (dB) below which audio is considered to be silence. "+
 			"Usually negative (e.g. -30).")
-	maxPause := flag.Float64("maxpause", 0.0, "max allowable period of silence (seconds). "+
-		"Any silent segment longer than this will be trimmed down to exactly this "+
-		"length by removing the middle portion and leaving maxpause/2 seconds of "+
-		"padding on each side.")
-	cutEncodeOpts := flag.String("cut_encode_opts", "", "encode options to pass to ffmpeg for cutting. "+
-		"Example: -cut_encode_opts \"-b:v 1M -b:a 192k -x264-params keyint=120\"")
+	introPadding := flag.Float64("intropadding", 0.0,
+		"number of seconds of video to keep before you start talking for the first time. ")
+	outroPadding := flag.Float64("outropadding", 0.0,
+		"number of seconds of video to keep after you stop talking for the last time. ")
+	maxPause := flag.Float64("maxpause", 0.0, "max allowable period of silence "+
+		"aside from intro/outro (in seconds). Any silent segment longer than this "+
+		"will be trimmed down to exactly this length by removing the middle "+
+		"portion and leaving maxpause/2 seconds of padding on each side.")
+	cutEncodeOpts := flag.String("encodeopts", "", "encode options to pass to ffmpeg for cutting. "+
+		"Example: -encodeopts \"-b:v 1M -b:a 192k -x264-params keyint=120\"")
 	flag.BoolVar(&debug, "debug", false, "debug mode (preserve temp directory)")
 
 	flag.Parse()
-	if err := doit(*inFile, *outFile, *maxPause, *silenceDb, *cutEncodeOpts); err != nil {
+	if err := doit(*inFile, *outFile, *maxPause, *silenceDb, *cutEncodeOpts, *introPadding, *outroPadding); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		os.Exit(1)
 	}
 }
 
-func doit(inFile, outFile string, maxPause, silenceDb float64, cutEncodeOpts string) error {
+func doit(inFile, outFile string, maxPause, silenceDb float64, cutEncodeOpts string, introPadding, outroPadding float64) error {
 	if inFile == "" {
 		return errors.New("-infile is required")
 	}
@@ -64,7 +68,7 @@ func doit(inFile, outFile string, maxPause, silenceDb float64, cutEncodeOpts str
 	}
 	cmd := exec.Command("ffmpeg",
 		"-i", inFile,
-		"-filter_complex", fmt.Sprintf("[0:a]silencedetect=n=%gdB:d=%g[outa]", silenceDb, maxPause),
+		"-filter_complex", fmt.Sprintf("[0:a]silencedetect=n=%gdB:d=%g[outa]", silenceDb, 0.1),
 		"-map", "[outa]",
 		"-f", "s16le",
 		"-y", "/dev/null",
@@ -74,18 +78,58 @@ func doit(inFile, outFile string, maxPause, silenceDb float64, cutEncodeOpts str
 		fmt.Fprintf(os.Stderr, strings.Join(lines, "\n")+"\n")
 		return err
 	}
+	dur, err := ffmpegParseDuration(lines)
+	if err != nil {
+		return err
+	}
 	silence, err := ffmpegParseSilentPeriods(lines)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("silent segments: %v\n", silence)
-	keep := invertSegmentsWithPadding(silence, maxPause/2.0)
+	keep := segmentsToKeep(silence, maxPause, introPadding, outroPadding, dur)
 	fmt.Printf("keeping segments: %v\n", keep)
 	chunks, err := cut(inFile, keep, tmpDir, cutEncodeOpts)
 	if err != nil {
 		return err
 	}
 	return join(chunks, outFile, tmpDir)
+}
+
+func segmentsToKeep(silence []segment, maxPause, introPadding, outroPadding, dur float64) []segment {
+	return invertSegments(segmentsToRemove(silence, maxPause, introPadding, outroPadding, dur))
+}
+
+func ffmpegParseDuration(lines []string) (float64, error) {
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		if fields[0] != "Duration:" {
+			continue
+		}
+		d := fields[1]
+		s, err := parseHMS(strings.TrimSuffix(d, ","))
+		if err != nil {
+			return 0, err
+		}
+		return s, nil
+	}
+	return 0.0, errors.New("Couldn't find duration in ffmpeg output")
+}
+
+func parseHMS(hms string) (float64, error) {
+	x := strings.Split(hms, ":")
+	h, err := strconv.ParseFloat(x[0], 64)
+	if err != nil {
+		return 0, err
+	}
+	m, err := strconv.ParseFloat(x[1], 64)
+	if err != nil {
+		return 0, err
+	}
+	s, err := strconv.ParseFloat(x[2], 64)
+	if err != nil {
+		return 0, err
+	}
+	return 60*60*h + 60*m + s, nil
 }
 
 func join(inFiles []string, outFile, tmpDir string) error {
@@ -121,7 +165,7 @@ func cut(inFile string, keep []segment, tmpDir, cutEncodeOpts string) ([]string,
 	chunks := []string{}
 	opts := []string{}
 	if cutEncodeOpts != "" {
-		opts = strings.Split(cutEncodeOpts, " ")
+		opts = strings.Fields(cutEncodeOpts)
 	}
 	logFilePath := filepath.Join(tmpDir, "extract.log")
 	logFile, err := os.Create(logFilePath)
@@ -129,7 +173,6 @@ func cut(inFile string, keep []segment, tmpDir, cutEncodeOpts string) ([]string,
 		return nil, err
 	}
 	ext := filepath.Ext(inFile)
-	// https://superuser.com/a/863451/99065
 	for i, k := range keep {
 		args := []string{"-v", "error"}
 		if k.start != 0 {
@@ -155,15 +198,37 @@ func cut(inFile string, keep []segment, tmpDir, cutEncodeOpts string) ([]string,
 	return chunks, nil
 }
 
-func invertSegmentsWithPadding(silence []segment, padding float64) []segment {
-	end := padding
-	keep := []segment{}
+func segmentsToRemove(silence []segment, maxPause, introPadding, outroPadding, dur float64) []segment {
+	rem := []segment{}
+	if len(silence) == 0 {
+		return []segment{}
+	}
+	if introPadding > 0 && silence[0].start <= 0 && silence[0].end > introPadding {
+		rem = append(rem, segment{0, silence[0].end - introPadding})
+	}
+	for _, s := range silence[1:] {
+		if s.end-s.start > maxPause && s.end < dur {
+			rem = append(rem, segment{s.start + maxPause/2.0, s.end - maxPause/2.0})
+		}
+	}
+	e := silence[len(silence)-1]
+	if outroPadding > 0 && e.end >= dur && e.end-e.start > outroPadding {
+		rem = append(rem, segment{e.start + outroPadding, 0.0})
+	}
+	return rem
+}
+
+func invertSegments(silence []segment) []segment {
+	end := 0.0
+	inv := []segment{}
 	for _, s := range silence {
-		keep = append(keep, segment{end - padding, s.start + padding})
+		if end > 0.0 {
+			inv = append(inv, segment{end, s.start})
+		}
 		end = s.end
 	}
-	keep = append(keep, segment{end - padding, 0.0})
-	return keep
+	inv = append(inv, segment{end, 0.0})
+	return inv
 }
 
 func ffmpegParseSilentPeriods(lines []string) ([]segment, error) {

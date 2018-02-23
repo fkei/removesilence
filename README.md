@@ -17,10 +17,13 @@ Usage of removesilence:
       Usually negative (e.g. -30).
   -debug
       debug mode (preserve temp directory)
-  -cut_encode_opts string
+  -encodeopts string
       encode options to pass to ffmpeg for cutting.
-      Example: -cut_encode_opts "-b:v 1M -b:a 192k -x264-params keyint=120"
-
+      Example: -encodeopts "-b:v 1M -b:a 192k -x264-params keyint=120"
+  -intropadding float
+    	number of seconds of video to keep before you start talking for the first time.
+  -outropadding float
+    	number of seconds of video to keep after you stop talking for the last time.
 ```
 
 Example:

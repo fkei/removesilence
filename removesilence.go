@@ -124,15 +124,7 @@ func ffmpegExtractSegments(inFile string, keep []segment, tmpDir string) ([]stri
 	ext := filepath.Ext(inFile)
 	// https://superuser.com/a/863451/99065
 	for i, k := range keep {
-		args := []string{
-			"-i", inFile,
-			"-y",
-			"-avoid_negative_ts", "1",
-			"-copyinkf",
-			"-acodec", "copy",
-			"-vcodec", "copy",
-			"-scodec", "copy",
-		}
+		args := []string{}
 		chunk := filepath.Join(tmpDir, fmt.Sprintf("%d%s", i, ext))
 		chunks = append(chunks, chunk)
 		if k.start != 0 {
@@ -142,8 +134,11 @@ func ffmpegExtractSegments(inFile string, keep []segment, tmpDir string) ([]stri
 			args = append(args, "-t", fmt.Sprintf("%f", k.end-k.start))
 		}
 		args = append(args,
-			"-map_metadata", "0",
+			"-i", inFile,
+			"-y",
+			"-c", "copy",
 			"-avoid_negative_ts", "1",
+			"-copyinkf",
 		)
 		args = append(args, chunk)
 		cmd := exec.Command("ffmpeg", args...)

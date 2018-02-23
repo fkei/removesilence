@@ -69,6 +69,7 @@ func doit(inFile, outFile string, maxPause, silenceDb float64) error {
 	)
 	lines, err := commandStderrLines(cmd)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, strings.Join(lines, "\n")+"\n")
 		return err
 	}
 	silence, err := ffmpegParseSilentPeriods(lines)

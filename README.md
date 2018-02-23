@@ -19,7 +19,8 @@ Usage of removesilence:
       debug mode (preserve temp directory)
   -cut_encode_opts string
       encode options to pass to ffmpeg for cutting.
-      Example: -cut_encode_opts "-b:v 1M -b:a 192k"
+      Example: -cut_encode_opts "-b:v 1M -b:a 192k -x264-params keyint=120"
+
 ```
 
 Example:

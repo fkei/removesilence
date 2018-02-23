@@ -31,7 +31,7 @@ func main() {
 		"length by removing the middle portion and leaving maxpause/2 seconds of "+
 		"padding on each side.")
 	cutEncodeOpts := flag.String("cut_encode_opts", "", "encode options to pass to ffmpeg for cutting. "+
-		"Example: -cut_encode_opts \"-b:v 1M -b:a 192k\"")
+		"Example: -cut_encode_opts \"-b:v 1M -b:a 192k -x264-params keyint=120\"")
 	flag.BoolVar(&debug, "debug", false, "debug mode (preserve temp directory)")
 
 	flag.Parse()

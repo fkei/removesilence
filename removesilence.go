@@ -30,19 +30,16 @@ func main() {
 		"Any silent segment longer than this will be trimmed down to exactly this "+
 		"length by removing the middle portion and leaving maxpause/2 seconds of "+
 		"padding on each side.")
-	fast := flag.Bool("fast", false, "(advanced) Extract segments using ffmpeg's copy codec "+
-		"rather than re-encoding everything. This is faster, but it has the disadvantage of rounding "+
-		"trimmed segments to adjacent keyframes.")
 	flag.BoolVar(&debug, "debug", false, "debug mode (preserve temp directory)")
 
 	flag.Parse()
-	if err := doit(*inFile, *outFile, *maxPause, *silenceDb, *fast); err != nil {
+	if err := doit(*inFile, *outFile, *maxPause, *silenceDb); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		os.Exit(1)
 	}
 }
 
-func doit(inFile, outFile string, maxPause, silenceDb float64, fast bool) error {
+func doit(inFile, outFile string, maxPause, silenceDb float64) error {
 	if inFile == "" {
 		return errors.New("-infile is required")
 	}
@@ -82,7 +79,7 @@ func doit(inFile, outFile string, maxPause, silenceDb float64, fast bool) error 
 	fmt.Printf("silent segments: %v\n", silence)
 	keep := invertSegmentsWithPadding(silence, maxPause/2.0)
 	fmt.Printf("keeping segments: %v\n", keep)
-	chunks, err := ffmpegExtractSegments(inFile, keep, tmpDir, fast)
+	chunks, err := ffmpegExtractSegments(inFile, keep, tmpDir)
 	if err != nil {
 		return err
 	}
@@ -117,7 +114,7 @@ func ffmpegConcatenateChunks(inFiles []string, outFile, tmpDir string) error {
 	return cmd.Run()
 }
 
-func ffmpegExtractSegments(inFile string, keep []segment, tmpDir string, fast bool) ([]string, error) {
+func ffmpegExtractSegments(inFile string, keep []segment, tmpDir string) ([]string, error) {
 	chunks := []string{}
 	logFile, err := os.Create(filepath.Join(tmpDir, "extract.log"))
 	if err != nil {
@@ -138,10 +135,7 @@ func ffmpegExtractSegments(inFile string, keep []segment, tmpDir string, fast bo
 		if k.end != 0 {
 			args = append(args, "-t", fmt.Sprintf("%f", k.end-k.start))
 		}
-		if fast {
-			args = append(args, "-c", "copy", "-avoid_negative_ts", "1")
-		}
-		args = append(args, chunk)
+		args = append(args, "-c", "copy", "-avoid_negative_ts", "1", chunk)
 	}
 	cmd := exec.Command("ffmpeg", args...)
 	cmd.Stdout = logFile

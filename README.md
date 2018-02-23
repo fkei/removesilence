@@ -17,10 +17,6 @@ Usage of removesilence:
       Usually negative (e.g. -30).
   -debug
       debug mode (preserve temp directory)
-  -fast
-      (advanced) Extract segments using ffmpeg's copy codec rather than
-      re-encoding everything. This is faster, but it has the disadvantage of
-      rounding trimmed segments to adjacent keyframes.
 ```
 
 Example:

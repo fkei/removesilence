@@ -2,8 +2,8 @@
 
 removesilence: remove silent segments from a video file using ffmpeg.
 
+Usage of removesilence:
 ```
-Usage of ./removesilence:
   -debug
     	debug mode (preserve temp directory)
   -infile string

@@ -1,14 +1,6 @@
 // removesilence removes periods of silence from a video file using ffmpeg.
 package main
 
-/*
-  Example usage:
-
-	  go build removesilence.go
-
-    ./removesilence -infile in.mp4 -outfile out.mp4  -maxpause 2 -silencedb -30
-*/
-
 import (
 	"bufio"
 	"errors"
@@ -219,19 +211,3 @@ func (s segment) String() string {
 	}
 	return o
 }
-
-/*
-Sources:
-- https://stackoverflow.com/questions/36074224/how-to-split-video-or-audio-by-silent-parts
-- https://trac.ffmpeg.org/wiki/Seeking
-
-Other ideas:
-
-Don't re-encode:
-https://vollnixx.wordpress.com/2012/06/01/howto-cut-a-video-directly-with-ffmpeg-without-transcoding/#comment-191
-"-c", "copy",
-
-Fix "Non-monotonous DTS in output stream" error (https://github.com/rg3/youtube-dl/issues/10719):
-"-fflags", "+genpts",
-"-avoid_negative_ts", "make_zero",
-*/

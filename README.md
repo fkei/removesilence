@@ -17,9 +17,6 @@ Usage of removesilence:
       Usually negative (e.g. -30).
   -keep-temp-files
       keep temp files
-  -encodeopts string
-      encode options to pass to ffmpeg for cutting.
-      Example: -encodeopts "-b:v 1M -b:a 192k -x264-params keyint=120"
   -intropadding float
     	number of seconds of video to keep before you start talking for the first time.
   -outropadding float

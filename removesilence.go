@@ -30,6 +30,7 @@ func main() {
 		"number of seconds of video to keep before you start talking for the first time. ")
 	outroPadding := flag.Float64("outropadding", 0.0,
 		"number of seconds of video to keep after you stop talking for the last time. ")
+	minKeep := flag.Float64("minkeep", 0.0, "minimum length of segment to include (including any padding).")
 	maxPause := flag.Float64("maxpause", 0.0, "max allowable period of silence "+
 		"aside from intro/outro (in seconds). Any silent segment longer than this "+
 		"will be trimmed down to exactly this length by removing the middle "+
@@ -37,13 +38,13 @@ func main() {
 	flag.BoolVar(&keepTempFiles, "keep-temp-files", false, "keep temp files")
 
 	flag.Parse()
-	if err := doit(*inFile, *outFile, *maxPause, *silenceDb, *introPadding, *outroPadding); err != nil {
+	if err := doit(*inFile, *outFile, *maxPause, *minKeep, *silenceDb, *introPadding, *outroPadding); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		os.Exit(1)
 	}
 }
 
-func doit(inFile, outFile string, maxPause, silenceDb float64, introPadding, outroPadding float64) error {
+func doit(inFile, outFile string, maxPause, minKeep, silenceDb float64, introPadding, outroPadding float64) error {
 	if inFile == "" {
 		return errors.New("-infile is required")
 	}
@@ -64,7 +65,7 @@ func doit(inFile, outFile string, maxPause, silenceDb float64, introPadding, out
 	if !keepTempFiles {
 		defer os.RemoveAll(tmpDir)
 	}
-	cmd := exec.Command("ffmpeg",
+	cmd := exec.Command("nice", "ffmpeg",
 		"-i", inFile,
 		"-filter_complex", fmt.Sprintf("[0:a]silencedetect=n=%gdB:d=%g[outa]", silenceDb, 0.1),
 		"-map", "[outa]",
@@ -85,12 +86,29 @@ func doit(inFile, outFile string, maxPause, silenceDb float64, introPadding, out
 		return err
 	}
 	keep := segmentsToKeep(silence, maxPause, introPadding, outroPadding, dur)
+	if minKeep > 0.0 {
+		keep = stripSegmentsShorterThan(keep, minKeep)
+	}
 	fmt.Printf("keeping segments: %v\n", keep)
 	chunks, err := cut(inFile, keep, tmpDir)
 	if err != nil {
 		return err
 	}
 	return join(chunks, outFile, tmpDir)
+}
+
+func stripSegmentsShorterThan(segs []segment, thresh float64) []segment {
+	keep := []segment{}
+	for _, s := range segs {
+		if s.duration() >= thresh {
+			keep = append(keep, s)
+		}
+	}
+	return keep
+}
+
+func (s segment) duration() float64 {
+	return s.end - s.start
 }
 
 func segmentsToKeep(silence []segment, maxPause, introPadding, outroPadding, dur float64) []segment {
@@ -147,7 +165,7 @@ func join(inFiles []string, outFile, tmpDir string) error {
 		"nice",
 		"ffmpeg",
 		"-f", "concat",
-		"-safe", "0", // https://www.ffmpeg.org/ffmpeg-formats.html#Options
+		"-safe", "0",
 		"-i", fileList,
 		"-c", "copy",
 		"-map", "0",
@@ -201,12 +219,12 @@ func segmentsToRemove(silence []segment, maxPause, introPadding, outroPadding, d
 		rem = append(rem, segment{0, silence[0].end - introPadding})
 	}
 	for _, s := range silence[1:] {
-		if s.end-s.start > maxPause && s.end < dur {
+		if s.duration() > maxPause && s.end < dur {
 			rem = append(rem, segment{s.start + maxPause/2.0, s.end - maxPause/2.0})
 		}
 	}
 	e := silence[len(silence)-1]
-	if outroPadding > 0 && e.end >= dur && e.end-e.start > outroPadding {
+	if outroPadding > 0 && e.end >= dur && e.duration() > outroPadding {
 		rem = append(rem, segment{e.start + outroPadding, 0.0})
 	}
 	return rem

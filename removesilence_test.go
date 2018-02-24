@@ -88,3 +88,22 @@ func TestFfmpegParseDuration(t *testing.T) {
 		}
 	}
 }
+
+func TestStripSegmentsShorterThan(t *testing.T) {
+	cases := []struct {
+		segs   []segment
+		thresh float64
+		want   []segment
+	}{
+		{[]segment{}, 0.0, []segment{}},
+		{[]segment{{0.0, 1.0}}, 2.0, []segment{}},
+		{[]segment{{0.0, 1.0}}, 0.5, []segment{{0.0, 1.0}}},
+		{[]segment{{0.0, 1.0}}, 1.0, []segment{{0.0, 1.0}}},
+	}
+	for _, c := range cases {
+		got := stripSegmentsShorterThan(c.segs, c.thresh)
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("stripSegmentsShorterThan(%v, %v)=%v; want %v", c.segs, c.thresh, got, c.want)
+		}
+	}
+}

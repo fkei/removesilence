@@ -4,6 +4,7 @@ removesilence: remove silent segments from a video file using ffmpeg.
 
 Usage of removesilence:
 ```
+Required flags:
   -infile string
       Path to input video file.
   -outfile string
@@ -15,6 +16,11 @@ Usage of removesilence:
   -silencedb float
       volume level (dB) below which audio is considered to be silence.
       Usually negative (e.g. -30).
+
+Optional flags:
+
+  -minkeep float
+    	minimum length of segment to include (including any padding).
   -keep-temp-files
       keep temp files
   -intropadding float
@@ -28,5 +34,5 @@ Example:
 ```
 go build removesilence.go
 
-./removesilence -infile in.mp4 -outfile out.mp4  -maxpause 2 -silencedb -30
+./removesilence -infile in.mp4 -outfile out.mp4  -maxpause 2 -silencedb -30 -minkeep 2.4
 ``` 

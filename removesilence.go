@@ -34,18 +34,16 @@ func main() {
 		"aside from intro/outro (in seconds). Any silent segment longer than this "+
 		"will be trimmed down to exactly this length by removing the middle "+
 		"portion and leaving maxpause/2 seconds of padding on each side.")
-	cutEncodeOpts := flag.String("encodeopts", "", "encode options to pass to ffmpeg for cutting. "+
-		"Example: -encodeopts \"-b:v 1M -b:a 192k -x264-params keyint=120\"")
 	flag.BoolVar(&keepTempFiles, "keep-temp-files", false, "keep temp files")
 
 	flag.Parse()
-	if err := doit(*inFile, *outFile, *maxPause, *silenceDb, *cutEncodeOpts, *introPadding, *outroPadding); err != nil {
+	if err := doit(*inFile, *outFile, *maxPause, *silenceDb, *introPadding, *outroPadding); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		os.Exit(1)
 	}
 }
 
-func doit(inFile, outFile string, maxPause, silenceDb float64, cutEncodeOpts string, introPadding, outroPadding float64) error {
+func doit(inFile, outFile string, maxPause, silenceDb float64, introPadding, outroPadding float64) error {
 	if inFile == "" {
 		return errors.New("-infile is required")
 	}
@@ -88,7 +86,7 @@ func doit(inFile, outFile string, maxPause, silenceDb float64, cutEncodeOpts str
 	}
 	keep := segmentsToKeep(silence, maxPause, introPadding, outroPadding, dur)
 	fmt.Printf("keeping segments: %v\n", keep)
-	chunks, err := cut(inFile, keep, tmpDir, cutEncodeOpts)
+	chunks, err := cut(inFile, keep, tmpDir)
 	if err != nil {
 		return err
 	}
@@ -161,12 +159,8 @@ func join(inFiles []string, outFile, tmpDir string) error {
 	return cmd.Run()
 }
 
-func cut(inFile string, keep []segment, tmpDir, cutEncodeOpts string) ([]string, error) {
+func cut(inFile string, keep []segment, tmpDir string) ([]string, error) {
 	chunks := []string{}
-	opts := []string{}
-	if cutEncodeOpts != "" {
-		opts = strings.Fields(cutEncodeOpts)
-	}
 	logFilePath := filepath.Join(tmpDir, "extract.log")
 	logFile, err := os.Create(logFilePath)
 	if err != nil {
@@ -182,7 +176,6 @@ func cut(inFile string, keep []segment, tmpDir, cutEncodeOpts string) ([]string,
 		if k.end != 0 {
 			args = append(args, "-t", fmt.Sprintf("%f", k.end-k.start))
 		}
-		args = append(args, opts...)
 		chunk := filepath.Join(tmpDir, fmt.Sprintf("%d%s", i+1, ext))
 		chunks = append(chunks, chunk)
 		args = append(args, chunk)
@@ -218,11 +211,12 @@ func segmentsToRemove(silence []segment, maxPause, introPadding, outroPadding, d
 	return rem
 }
 
-func invertSegments(silence []segment) []segment {
+func invertSegments(segs []segment) []segment {
 	end := 0.0
 	inv := []segment{}
-	for _, s := range silence {
-		if end > 0.0 {
+	fmt.Printf("inverting %v\n", segs)
+	for _, s := range segs {
+		if s.start > 0.0 {
 			inv = append(inv, segment{end, s.start})
 		}
 		end = s.end

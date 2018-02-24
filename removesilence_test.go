@@ -11,6 +11,7 @@ func TestInvertSegments(t *testing.T) {
 		want []segment
 	}{
 		{[]segment{}, []segment{{0.0, 0.0}}},
+		{[]segment{{0.0, 1.0}}, []segment{{1.0, 0.0}}},
 		{[]segment{{1.0, 4.0}}, []segment{{0.0, 1.0}, {4.0, 0.0}}},
 		{[]segment{{1.0, 4.0}, {6.5, 9.5}}, []segment{{0.0, 1.0}, {4.0, 6.5}, {9.5, 0.0}}},
 	}

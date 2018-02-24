@@ -144,6 +144,7 @@ func join(inFiles []string, outFile, tmpDir string) error {
 		return err
 	}
 	cmd := exec.Command(
+		"nice",
 		"ffmpeg",
 		"-f", "concat",
 		"-safe", "0", // https://www.ffmpeg.org/ffmpeg-formats.html#Options
@@ -168,7 +169,7 @@ func cut(inFile string, keep []segment, tmpDir string) ([]string, error) {
 	}
 	ext := filepath.Ext(inFile)
 	for i, k := range keep {
-		args := []string{"-v", "error"}
+		args := []string{"ffmpeg", "-v", "error"}
 		if k.start != 0 {
 			args = append(args, "-ss", fmt.Sprintf("%f", k.start))
 		}
@@ -179,7 +180,7 @@ func cut(inFile string, keep []segment, tmpDir string) ([]string, error) {
 		chunk := filepath.Join(tmpDir, fmt.Sprintf("%d%s", i+1, ext))
 		chunks = append(chunks, chunk)
 		args = append(args, chunk)
-		cmd := exec.Command("ffmpeg", args...)
+		cmd := exec.Command("nice", args...)
 		cmd.Stdout = logFile
 		cmd.Stderr = logFile
 		fmt.Printf("%s\n", strings.Join(cmd.Args, " "))

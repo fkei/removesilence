@@ -15,8 +15,8 @@ Usage of removesilence:
   -silencedb float
       volume level (dB) below which audio is considered to be silence.
       Usually negative (e.g. -30).
-  -debug
-      debug mode (preserve temp directory)
+  -keep-temp-files
+      keep temp files
   -encodeopts string
       encode options to pass to ffmpeg for cutting.
       Example: -encodeopts "-b:v 1M -b:a 192k -x264-params keyint=120"

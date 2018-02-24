@@ -18,7 +18,7 @@ type segment struct {
 	start, end float64
 }
 
-var debug bool
+var keepTempFiles bool
 
 func main() {
 	inFile := flag.String("infile", "", "Path to input video file.")
@@ -36,7 +36,7 @@ func main() {
 		"portion and leaving maxpause/2 seconds of padding on each side.")
 	cutEncodeOpts := flag.String("encodeopts", "", "encode options to pass to ffmpeg for cutting. "+
 		"Example: -encodeopts \"-b:v 1M -b:a 192k -x264-params keyint=120\"")
-	flag.BoolVar(&debug, "debug", false, "debug mode (preserve temp directory)")
+	flag.BoolVar(&keepTempFiles, "keep-temp-files", false, "keep temp files")
 
 	flag.Parse()
 	if err := doit(*inFile, *outFile, *maxPause, *silenceDb, *cutEncodeOpts, *introPadding, *outroPadding); err != nil {
@@ -63,7 +63,7 @@ func doit(inFile, outFile string, maxPause, silenceDb float64, cutEncodeOpts str
 	if err != nil {
 		return err
 	}
-	if !debug {
+	if !keepTempFiles {
 		defer os.RemoveAll(tmpDir)
 	}
 	cmd := exec.Command("ffmpeg",

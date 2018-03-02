@@ -34,7 +34,8 @@ func main() {
 	maxPause := flag.Float64("maxpause", 0.0, "max allowable period of silence "+
 		"aside from intro/outro (in seconds). Any silent segment longer than this "+
 		"will be trimmed down to exactly this length by removing the middle "+
-		"portion and leaving maxpause/2 seconds of padding on each side.")
+		"portion and leaving maxpause/2 seconds of padding on each side. After this is done, "+
+		"any remaining clips shorter than maxpause+1 seconds will be further shortened.")
 	flag.BoolVar(&keepTempFiles, "keep-temp-files", false, "keep temp files")
 
 	flag.Parse()
@@ -89,12 +90,31 @@ func doit(inFile, outFile string, maxPause, minKeep, silenceDb float64, introPad
 	if minKeep > 0.0 {
 		keep = stripSegmentsShorterThan(keep, minKeep)
 	}
+	shortenPaddingForShortClips(keep, maxPause)
 	fmt.Printf("keeping segments: %v\n", keep)
 	chunks, err := cut(inFile, keep, tmpDir)
 	if err != nil {
 		return err
 	}
 	return join(chunks, outFile, tmpDir)
+}
+
+func shortenPaddingForShortClips(keep []segment, maxPause float64) {
+	p := maxPause / 2 // padding
+	for i, c := range keep {
+		if i == 0 || i == len(keep)-1 {
+			continue
+		}
+		if c.duration() < 2*p+1 {
+			newPad := c.duration() - 2*p
+			padDiff := p - newPad
+			if newPad < p {
+				keep[i].start += padDiff
+				keep[i].end -= padDiff
+				fmt.Printf("shortened padding: %s --> %s\n", c, keep[i])
+			}
+		}
+	}
 }
 
 func stripSegmentsShorterThan(segs []segment, thresh float64) []segment {
@@ -292,9 +312,9 @@ func commandStderrLines(cmd *exec.Cmd) ([]string, error) {
 }
 
 func (s segment) String() string {
-	o := fmt.Sprintf("%g-", s.start)
+	o := fmt.Sprintf("%.2f-", s.start)
 	if s.end != 0.0 {
-		o += fmt.Sprintf("%g", s.end)
+		o += fmt.Sprintf("%.2f", s.end)
 	}
 	return o
 }

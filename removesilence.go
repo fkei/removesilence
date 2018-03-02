@@ -215,6 +215,7 @@ func cut(inFile string, keep []segment, tmpDir string) ([]string, error) {
 		if k.end != 0 {
 			args = append(args, "-t", fmt.Sprintf("%f", k.end-k.start))
 		}
+		args = append(args, "-acodec", "copy")
 		chunk := filepath.Join(tmpDir, fmt.Sprintf("%d%s", i+1, ext))
 		chunks = append(chunks, chunk)
 		args = append(args, chunk)
